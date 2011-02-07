@@ -1,0 +1,5 @@
+; $Id$
+name = Urban Airship API
+description = "Provides an API for interacting with Urban Airship"
+core = 6.x
+version = 6.x-1.x-dev
