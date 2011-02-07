@@ -1,0 +1,1 @@
+This Drupal module provides an API to interact with Urban Airship.
