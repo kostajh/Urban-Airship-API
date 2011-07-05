@@ -26,7 +26,7 @@ function urbanairship_api_menu() {
  */
 function urbanairship_api_settings_form($form_state) {
   $form = array();
-  
+
   $form['credentials'] = array(
     '#type' => 'fieldset',
     '#title' => t('Credentials'),
@@ -102,14 +102,67 @@ function urbanairship_api_settings_form($form_state) {
     '#default_value' => variable_get('ua_broadcast_url', 'go.urbanairship.com/api' . '/push/broadcast/')
   );
   
+  $form['connection_urls']['ua_push_url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Push URL'),
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#default_value' => variable_get('ua_push_url', 'go.urbanairship.com/api' . '/push/')
+  );
   return system_settings_form($form);
 }
 
 /**
- * Sends a push notification.
+ * Sends a push notification to specific devices.
  *
  * @return void
- * @author Kosta Harlan
+ */
+function urbanairship_api_push($payload = array(), $device_tokens = NULL, $aliases = NULL, $tags = NULL, $schedule_for = NULL, $exclude_tokens = NULL) {
+  $data = array();  
+  if (is_array($payload)) {
+    $data['aps'] = $payload;  
+  }
+  else {
+    return;
+  }
+  if (empty($device_tokens) && empty($aliases) && empty($tags)) {
+    return;	
+  }
+  if (!empty($device_tokens)) {
+    $data['device_tokens'] = (array)$device_tokens;	
+  }
+  if (!empty($aliases)) {
+    $data['aliases'] = (array)$aliases;	
+  }
+  if (!empty($tags)) {
+    $data['tags'] = (array)$tags;	
+  }
+  if (!empty($schedule_for)) {
+    $data['schedule_for'] = (array)$schedule_for;	
+  }
+  if (!empty($exclude_tokens)) {
+    $data['exclude_tokens'] = (array)$exclude_tokens;	
+  }
+  $body = json_encode($data);
+  $push_url = variable_get('ua_push_url', 'go.urbanairship.com/api/push/');
+  $user = variable_get('ua_app_key', '');
+  $pass = variable_get('ua_app_master_key', '');
+  $connect = 'https://' . $user . ':' . $pass . '@' . $push_url;
+  $headers = array('Content-Type' => 'application/json');
+  $request = drupal_http_request($connect, $headers, 'POST', $body);
+  
+  if ($request->request['code'] == 200) {
+    watchdog('urbanairship_api', 'Succesfully sent push notification for payload <pre>@payload</pre>', array('@payload' => print_r($payload, TRUE)));
+  } 
+  else {
+    watchdog('urbanairship_api', 'Push notification was not sent, received error @error.', array('@error' => $request->request['code']), WATCHDOG_ERROR);
+  }
+}
+
+/**
+ * Sends a push notification to all registered devices.
+ *
+ * @return void
  */
 function urbanairship_api_broadcast($payload = array(), $exclude_tokens = NULL) {
   if (!$payload) {
@@ -128,7 +181,8 @@ function urbanairship_api_broadcast($payload = array(), $exclude_tokens = NULL) 
   
   if ($request->request['code'] == 200) {
     watchdog('urbanairship_api', 'Succesfully sent push notification for payload <pre>@payload</pre>', array('@payload' => print_r($payload, TRUE)));
-  } else {
+  } 
+  else {
     watchdog('urbanairship_api', 'Push notification was not sent, received error @error.', array('@error' => $request->request['code']), WATCHDOG_ERROR);
   }
 }
